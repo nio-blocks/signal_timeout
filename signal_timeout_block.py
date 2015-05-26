@@ -5,6 +5,7 @@ from nio.metadata.properties.timedelta import TimeDeltaProperty
 from nio.metadata.properties.bool import BoolProperty
 from nio.metadata.properties.list import ListProperty
 from nio.metadata.properties.holder import PropertyHolder
+from nio.metadata.properties.version import VersionProperty
 from nio.modules.scheduler import Job
 from nio.modules.threading import Lock
 from nio.common.signal.base import Signal
@@ -32,6 +33,7 @@ class SignalTimeout(GroupBy, Block):
     """
 
     intervals = ListProperty(Interval, title='Timeout Intervals')
+    version = VersionProperty('1.0.0')
 
     def __init__(self):
         super().__init__()
