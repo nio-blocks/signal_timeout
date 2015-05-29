@@ -1,13 +1,12 @@
 from ..signal_timeout_block import SignalTimeout
-from unittest.mock import MagicMock
 from nio.util.support.block_test_case import NIOBlockTestCase
 from nio.common.signal.base import Signal
 from nio.modules.threading import Event
-from time import sleep
 import datetime
 
 
 class EventSignalTimeout(SignalTimeout):
+
     def __init__(self, event):
         super().__init__()
         self._event = event
@@ -20,7 +19,7 @@ class EventSignalTimeout(SignalTimeout):
         self._event.clear()
 
 
-class TestBuffer(NIOBlockTestCase):
+class TestSignalTimeout(NIOBlockTestCase):
 
     def test_timeout(self):
         event = Event()
@@ -41,6 +40,34 @@ class TestBuffer(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
+                              'group': 'null'})
+        block.stop()
+
+    def test_reset(self):
+        """ Make sure the block can reset the intervals """
+        event = Event()
+        block = EventSignalTimeout(event)
+        self.configure_block(block, {
+            "intervals": [
+                {
+                    "interval": {
+                        "seconds": 1
+                    }
+                }
+            ]
+        })
+        block.start()
+        block.process_signals([Signal()])
+        # Wait a bit before sending another signal
+        event.wait(0.6)
+        block.process_signals([Signal()])
+        self.assert_num_signals_notified(0, block)
+        event.wait(0.6)
+        self.assert_num_signals_notified(0, block)
+        event.wait(0.6)
+        self.assert_num_signals_notified(1, block)
+        self.assertDictEqual(block.notified_signals[0].to_dict(),
+                             {'timeout': datetime.timedelta(seconds=1),
                               'group': 'null'})
         block.stop()
 
