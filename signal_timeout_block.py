@@ -24,6 +24,9 @@ class SignalTimeout(GroupBy, Block):
     """ Notifies a timeout signal when no signals have been processed
     by this block for the defined intervals.
 
+    The timeout signal is the last signal that entered the block, with the
+    added attributes *timoeut* and *group*.
+
     Properties:
         group_by (expression): The value by which signals are grouped.
         intervals (list):
@@ -33,7 +36,7 @@ class SignalTimeout(GroupBy, Block):
     """
 
     intervals = ListProperty(Interval, title='Timeout Intervals')
-    version = VersionProperty('1.0.0')
+    version = VersionProperty('2.0.0')
 
     def __init__(self):
         super().__init__()
@@ -55,7 +58,7 @@ class SignalTimeout(GroupBy, Block):
             self._cancel_timeout_jobs(key)
             for interval in self.intervals:
                 self._schedule_timeout_job(
-                    key, interval.interval, interval.repeatable)
+                    signals[-1], key, interval.interval, interval.repeatable)
 
     def _cancel_timeout_jobs(self, key):
         """ Cancel all the timeouts for a given group """
@@ -63,13 +66,15 @@ class SignalTimeout(GroupBy, Block):
         for job in self._jobs[key].values():
             job.cancel()
 
-    def _schedule_timeout_job(self, key, interval, repeatable):
+    def _schedule_timeout_job(self, signal, key, interval, repeatable):
         self._logger.debug("Scheduling new timeout job for group {}, interval"
                            "={} repeatable={}".format(
                                key, interval, repeatable))
         self._jobs[key][interval] = Job(
-            self._timeout_job, interval, repeatable, key, interval)
+            self._timeout_job, interval, repeatable, signal, key, interval)
 
-    def _timeout_job(self, key, interval):
+    def _timeout_job(self, signal, key, interval):
         """ Triggered when an interval times out """
-        self.notify_signals([Signal({'timeout': interval, 'group': key})])
+        signal.timeout = interval
+        signal.group = key
+        self.notify_signals([signal])

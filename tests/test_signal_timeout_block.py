@@ -34,13 +34,14 @@ class TestSignalTimeout(NIOBlockTestCase):
             ]
         })
         block.start()
-        block.process_signals([Signal()])
+        block.process_signals([Signal({'a': 'A'})])
         self.assert_num_signals_notified(0, block)
         event.wait(.3)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null'})
+                              'group': 'null',
+                              'a': 'A'})
         block.stop()
 
     def test_reset(self):
@@ -57,10 +58,10 @@ class TestSignalTimeout(NIOBlockTestCase):
             ]
         })
         block.start()
-        block.process_signals([Signal()])
+        block.process_signals([Signal({'a': 'A'})])
         # Wait a bit before sending another signal
         event.wait(0.6)
-        block.process_signals([Signal()])
+        block.process_signals([Signal({'b': 'B'})])
         self.assert_num_signals_notified(0, block)
         event.wait(0.6)
         self.assert_num_signals_notified(0, block)
@@ -68,7 +69,8 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(seconds=1),
-                              'group': 'null'})
+                              'group': 'null',
+                              'b': 'B'})
         block.stop()
 
     def test_repeatable(self):
@@ -85,17 +87,19 @@ class TestSignalTimeout(NIOBlockTestCase):
             ]
         })
         block.start()
-        block.process_signals([Signal()])
+        block.process_signals([Signal({'a': 'A'})])
         event.wait(.3)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null'})
+                              'group': 'null',
+                              'a': 'A'})
         event.wait(.3)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null'})
+                              'group': 'null',
+                              'a': 'A'})
         block.stop()
 
     def test_groups(self):
@@ -113,18 +117,22 @@ class TestSignalTimeout(NIOBlockTestCase):
             "group_by": "{{$group}}"
         })
         block.start()
-        block.process_signals([Signal({'group': 'a'})])
-        block.process_signals([Signal({'group': 'b'})])
+        block.process_signals([Signal({'a': 'A', 'group': 'a'})])
+        block.process_signals([Signal({'b': 'B', 'group': 'b'})])
+        # Wait for first notification
         event.wait(.3)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'a'})
+                              'group': 'a',
+                              'a': 'A'})
+        # Wait for second notificiation, it should be right after first
         event.wait(.3)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'b'})
+                              'group': 'b',
+                              'b': 'B'})
         block.stop()
 
     def test_multiple_intervals(self):
@@ -149,20 +157,24 @@ class TestSignalTimeout(NIOBlockTestCase):
             ]
         })
         block.start()
-        block.process_signals([Signal()])
+        block.process_signals([Signal({'a': 'A'})])
         event.wait(.3)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null'})
+                              'group': 'null',
+                              'a': 'A'})
         event.wait(.3)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 300000),
-                              'group': 'null'})
+                              'group': 'null',
+                              'a': 'A'})
         event.wait(.3)
         self.assert_num_signals_notified(3, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null'})
+                              'group': 'null',
+                              'a': 'A'})
+        event.wait(.3)
         block.stop()
