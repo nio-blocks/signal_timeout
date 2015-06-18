@@ -1,7 +1,7 @@
 SignalTimeout
 =======
 
-Notifies a timeout signal when no signals have been processed by this block for the defined intervals. A timeout signal is the last signal to enter the block with and added *group* attribute that specifies the group (default 'null') and a *timeout* attribute that is a python datetime.timedelta specifying the configured interval that triggered the signal.
+Notifies a timeout signal when no signals have been processed by this block for the defined intervals. A timeout signal is the last signal to enter the block with an added *group* attribute that specifies the group (default 'null') and a *timeout* attribute that is a python datetime.timedelta specifying the configured interval that triggered the signal.
 
 Group-by functionality will create timeout signals for each registered group. A signal needs to come in to the block to initialize a group and start emitting timeout signals.
 

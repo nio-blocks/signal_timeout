@@ -36,7 +36,7 @@ class SignalTimeout(GroupBy, Block):
     """
 
     intervals = ListProperty(Interval, title='Timeout Intervals')
-    version = VersionProperty('1.1.0')
+    version = VersionProperty('2.0.0')
 
     def __init__(self):
         super().__init__()
@@ -54,12 +54,11 @@ class SignalTimeout(GroupBy, Block):
 
         # Lock around the individual group
         with self._jobs_locks[key]:
-            print(key)
             # Cancel any existing timeout jobs, then reschedule them
             self._cancel_timeout_jobs(key)
             for interval in self.intervals:
                 self._schedule_timeout_job(
-                    signals[-1:][0], key, interval.interval, interval.repeatable)
+                    signals[-1], key, interval.interval, interval.repeatable)
 
     def _cancel_timeout_jobs(self, key):
         """ Cancel all the timeouts for a given group """
