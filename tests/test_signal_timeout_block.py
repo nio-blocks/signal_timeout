@@ -1,8 +1,9 @@
-from ..signal_timeout_block import SignalTimeout
-from nio.util.support.block_test_case import NIOBlockTestCase
-from nio.common.signal.base import Signal
-from nio.modules.threading import Event
 import datetime
+from threading import Event
+from nio.block.terminals import DEFAULT_TERMINAL
+from nio.signal.base import Signal
+from nio.testing.block_test_case import NIOBlockTestCase
+from ..signal_timeout_block import SignalTimeout
 
 
 class EventSignalTimeout(SignalTimeout):
@@ -40,7 +41,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null',
+                              'group': None,
                               'a': 'A'})
         block.stop()
 
@@ -69,7 +70,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(seconds=1),
-                              'group': 'null',
+                              'group': None,
                               'b': 'B'})
         block.stop()
 
@@ -92,13 +93,13 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null',
+                              'group': None,
                               'a': 'A'})
         event.wait(.3)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null',
+                              'group': None,
                               'a': 'A'})
         block.stop()
 
@@ -162,19 +163,19 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null',
+                              'group': None,
                               'a': 'A'})
         event.wait(.3)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 300000),
-                              'group': 'null',
+                              'group': None,
                               'a': 'A'})
         event.wait(.3)
         self.assert_num_signals_notified(3, block)
         self.assertDictEqual(block.notified_signals[0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'null',
+                              'group': None,
                               'a': 'A'})
         event.wait(.3)
         block.stop()
