@@ -13,7 +13,7 @@ from nio.block.mixins.group_by.group_by import GroupBy
 
 
 class Interval(PropertyHolder):
-    interval = TimeDeltaProperty(title='Interval')
+    interval = TimeDeltaProperty(title='Interval', default={})
     repeatable = BoolProperty(title='Repeatable',
                               default=False)
 
@@ -35,7 +35,7 @@ class SignalTimeout(GroupBy, Block):
 
     """
 
-    intervals = ListProperty(Interval, title='Timeout Intervals')
+    intervals = ListProperty(Interval, title='Timeout Intervals', default=[])
     version = VersionProperty('0.1.0')
 
     def __init__(self):
