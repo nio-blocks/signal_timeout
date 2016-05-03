@@ -1,8 +1,12 @@
-from ..signal_timeout_block import SignalTimeout
-from nio.util.support.block_test_case import NIOBlockTestCase
-from nio.common.signal.base import Signal
-from nio.modules.threading import Event
 import datetime
+from datetime import timedelta
+from collections import defaultdict
+from unittest.mock import patch
+from nio.common.signal.base import Signal
+from nio.modules.scheduler import Job
+from nio.modules.threading import Event
+from nio.util.support.block_test_case import NIOBlockTestCase
+from ..signal_timeout_block import SignalTimeout
 
 
 class EventSignalTimeout(SignalTimeout):
@@ -20,6 +24,9 @@ class EventSignalTimeout(SignalTimeout):
 
 
 class TestSignalTimeout(NIOBlockTestCase):
+
+    def get_test_modules(self):
+        return super().get_test_modules() + ['persistence']
 
     def test_timeout(self):
         event = Event()
@@ -178,3 +185,44 @@ class TestSignalTimeout(NIOBlockTestCase):
                               'a': 'A'})
         event.wait(.3)
         block.stop()
+
+    def test_persist_load(self):
+        event = Event()
+        block = EventSignalTimeout(event)
+        with patch('nio.modules.persistence.default.Persistence.has_key') \
+                as has_key:
+            with patch('nio.modules.persistence.default.Persistence.load') \
+                    as load:
+                has_key.return_value = True
+                persisted_jobs = defaultdict(dict)
+                persisted_jobs[1][timedelta(seconds=0.1)] = \
+                    Signal({"group": 1})
+                load.return_value = persisted_jobs
+                self.configure_block(block, {
+                    "intervals": [{"interval":
+                                   {"milliseconds": 100},
+                                   "repeatable": True
+                                   }],
+                    "group_by": "{{ $group }}"})
+        block.start()
+        self.assertEqual(len(block._jobs), 1)
+        self.assertTrue(
+            isinstance(block._jobs[1][timedelta(seconds=0.1)], Job))
+        # Wait for the persisted signal to be notified
+        event.wait(0.3)
+        self.assert_num_signals_notified(1, block)
+        self.assertEqual(block.notified_signals[0].group, 1)
+        # And notified again, since the job is repeatable
+        event.wait(0.3)
+        self.assert_num_signals_notified(2, block)
+        self.assertEqual(block.notified_signals[0].group, 1)
+        # New groups should still be scheduled
+        block.process_signals([Signal({"group": 2})])
+        # So we get another notification from persistence
+        event.wait(0.3)
+        self.assert_num_signals_notified(3, block)
+        self.assertEqual(block.notified_signals[0].group, 1)
+        # And the new one
+        event.wait(0.3)
+        self.assert_num_signals_notified(4, block)
+        self.assertEqual(block.notified_signals[0].group, 2)

@@ -5,6 +5,8 @@ Notifies a timeout signal when no signals have been processed by this block for 
 
 Group-by functionality will create timeout signals for each registered group. A signal needs to come in to the block to initialize a group and start emitting timeout signals.
 
+Repeatable timeouts are saved to persistence so that they continue to notify after a service restart.
+
 Properties
 --------------
 
