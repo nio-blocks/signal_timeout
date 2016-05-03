@@ -10,6 +10,7 @@ from nio.modules.scheduler import Job
 from threading import Lock
 from nio.signal.base import Signal
 from nio.block.mixins.group_by.group_by import GroupBy
+from nio.block.mixins.persistence.persistence import Persistence
 
 
 class Interval(PropertyHolder):
@@ -19,7 +20,7 @@ class Interval(PropertyHolder):
 
 
 @discoverable
-class SignalTimeout(GroupBy, Block):
+class SignalTimeout(Persistence, GroupBy, Block):
 
     """ Notifies a timeout signal when no signals have been processed
     by this block for the defined intervals.
@@ -42,6 +43,22 @@ class SignalTimeout(GroupBy, Block):
         super().__init__()
         self._jobs = defaultdict(dict)
         self._jobs_locks = defaultdict(Lock)
+        self._repeatable_jobs = defaultdict(dict)
+
+    def persisted_values(self):
+        """Use persistence mixin"""
+        return ["_repeatable_jobs"]
+
+    def start(self):
+        super().start()
+        # Schedule persisted jobs
+        for key in self._repeatable_jobs:
+            with self._jobs_locks[key]:
+                for interval in self._repeatable_jobs[key]:
+                    self._schedule_timeout_job(
+                        self._repeatable_jobs[key][interval],
+                        key, interval, True)
+
 
     def process_signals(self, signals):
         self.for_each_group(self.process_group, signals)
@@ -68,6 +85,8 @@ class SignalTimeout(GroupBy, Block):
         self.logger.debug("Cancelling jobs for {}".format(key))
         for job in self._jobs[key].values():
             job.cancel()
+        if key in self._repeatable_jobs:
+            del self._repeatable_jobs[key]
 
     def _schedule_timeout_job(self, signal, key, interval, repeatable):
         self.logger.debug("Scheduling new timeout job for group {}, interval"
@@ -75,6 +94,8 @@ class SignalTimeout(GroupBy, Block):
                                key, interval, repeatable))
         self._jobs[key][interval] = Job(
             self._timeout_job, interval, repeatable, signal, key, interval)
+        if repeatable:
+            self._repeatable_jobs[key][interval] = signal
 
     def _timeout_job(self, signal, key, interval):
         """ Triggered when an interval times out """

@@ -1,6 +1,9 @@
 import datetime
+from datetime import timedelta
+from collections import defaultdict
 from threading import Event
 from nio.block.terminals import DEFAULT_TERMINAL
+from nio.modules.scheduler import Job
 from nio.signal.base import Signal
 from nio.testing.block_test_case import NIOBlockTestCase
 from ..signal_timeout_block import SignalTimeout
@@ -179,3 +182,40 @@ class TestSignalTimeout(NIOBlockTestCase):
                               'a': 'A'})
         event.wait(.3)
         block.stop()
+
+    def test_persistence(self):
+        """Persisted timeout jobs are notified accordingly"""
+        event = Event()
+        block = EventSignalTimeout(event)
+        # Load from persistence
+        persisted_jobs = defaultdict(dict)
+        persisted_jobs[1][timedelta(seconds=0.1)] = Signal({"group": 1})
+        block._repeatable_jobs = persisted_jobs
+        self.configure_block(block, {
+            "intervals": [{"interval":
+                            {"milliseconds": 100},
+                            "repeatable": True
+                            }],
+            "group_by": "{{ $group }}"})
+        block.start()
+        self.assertEqual(len(block._jobs), 1)
+        self.assertTrue(
+            isinstance(block._jobs[1][timedelta(seconds=0.1)], Job))
+        # Wait for the persisted signal to be notified
+        event.wait(0.3)
+        self.assert_num_signals_notified(1, block)
+        self.assertEqual(block.notified_signals[0].group, 1)
+        # And notified again, since the job is repeatable
+        event.wait(0.3)
+        self.assert_num_signals_notified(2, block)
+        self.assertEqual(block.notified_signals[0].group, 1)
+        # New groups should still be scheduled
+        block.process_signals([Signal({"group": 2})])
+        # So we get another notification from persistence
+        event.wait(0.3)
+        self.assert_num_signals_notified(3, block)
+        self.assertEqual(block.notified_signals[0].group, 1)
+        # And the new one
+        event.wait(0.3)
+        self.assert_num_signals_notified(4, block)
+        self.assertEqual(block.notified_signals[0].group, 2)
