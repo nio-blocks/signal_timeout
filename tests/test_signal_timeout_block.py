@@ -1,33 +1,18 @@
 import datetime
 from datetime import timedelta
 from collections import defaultdict
-from threading import Event
 from nio.block.terminals import DEFAULT_TERMINAL
 from nio.modules.scheduler import Job
 from nio.signal.base import Signal
 from nio.testing.block_test_case import NIOBlockTestCase
+from nio.testing.modules.scheduler.scheduler import JumpAheadScheduler
 from ..signal_timeout_block import SignalTimeout
-
-
-class EventSignalTimeout(SignalTimeout):
-
-    def __init__(self, event):
-        super().__init__()
-        self._event = event
-        self.notified_signals = []
-
-    def notify_signals(self, signals):
-        super().notify_signals(signals)
-        self.notified_signals = signals
-        self._event.set()
-        self._event.clear()
 
 
 class TestSignalTimeout(NIOBlockTestCase):
 
     def test_timeout(self):
-        event = Event()
-        block = EventSignalTimeout(event)
+        block = SignalTimeout()
         self.configure_block(block, {
             "intervals": [
                 {
@@ -40,9 +25,9 @@ class TestSignalTimeout(NIOBlockTestCase):
         block.start()
         block.process_signals([Signal({'a': 'A'})])
         self.assert_num_signals_notified(0, block)
-        event.wait(.3)
+        JumpAheadScheduler.jump_ahead(0.2)
         self.assert_num_signals_notified(1, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': None,
                               'a': 'A'})
@@ -50,8 +35,7 @@ class TestSignalTimeout(NIOBlockTestCase):
 
     def test_reset(self):
         """ Make sure the block can reset the intervals """
-        event = Event()
-        block = EventSignalTimeout(event)
+        block = SignalTimeout()
         self.configure_block(block, {
             "intervals": [
                 {
@@ -64,22 +48,21 @@ class TestSignalTimeout(NIOBlockTestCase):
         block.start()
         block.process_signals([Signal({'a': 'A'})])
         # Wait a bit before sending another signal
-        event.wait(0.6)
+        JumpAheadScheduler.jump_ahead(0.6)
         block.process_signals([Signal({'b': 'B'})])
         self.assert_num_signals_notified(0, block)
-        event.wait(0.6)
+        JumpAheadScheduler.jump_ahead(0.6)
         self.assert_num_signals_notified(0, block)
-        event.wait(0.6)
+        JumpAheadScheduler.jump_ahead(0.6)
         self.assert_num_signals_notified(1, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
                              {'timeout': datetime.timedelta(seconds=1),
                               'group': None,
                               'b': 'B'})
         block.stop()
 
     def test_repeatable(self):
-        event = Event()
-        block = EventSignalTimeout(event)
+        block = SignalTimeout()
         self.configure_block(block, {
             "intervals": [
                 {
@@ -92,23 +75,22 @@ class TestSignalTimeout(NIOBlockTestCase):
         })
         block.start()
         block.process_signals([Signal({'a': 'A'})])
-        event.wait(.3)
+        JumpAheadScheduler.jump_ahead(0.2)
         self.assert_num_signals_notified(1, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': None,
                               'a': 'A'})
-        event.wait(.3)
+        JumpAheadScheduler.jump_ahead(0.2)
         self.assert_num_signals_notified(2, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': None,
                               'a': 'A'})
         block.stop()
 
     def test_groups(self):
-        event = Event()
-        block = EventSignalTimeout(event)
+        block = SignalTimeout()
         self.configure_block(block, {
             "intervals": [
                 {
@@ -123,25 +105,21 @@ class TestSignalTimeout(NIOBlockTestCase):
         block.start()
         block.process_signals([Signal({'a': 'A', 'group': 'a'})])
         block.process_signals([Signal({'b': 'B', 'group': 'b'})])
-        # Wait for first notification
-        event.wait(.3)
-        self.assert_num_signals_notified(1, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        # Wait for notifications
+        JumpAheadScheduler.jump_ahead(0.2)
+        self.assert_num_signals_notified(2, block)
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': 'a',
                               'a': 'A'})
-        # Wait for second notificiation, it should be right after first
-        event.wait(.3)
-        self.assert_num_signals_notified(2, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': 'b',
                               'b': 'B'})
         block.stop()
 
     def test_multiple_intervals(self):
-        event = Event()
-        block = EventSignalTimeout(event)
+        block = SignalTimeout()
         self.configure_block(block, {
             "intervals": [
                 {
@@ -162,31 +140,35 @@ class TestSignalTimeout(NIOBlockTestCase):
         })
         block.start()
         block.process_signals([Signal({'a': 'A'})])
-        event.wait(.3)
+        # At time 200
+        JumpAheadScheduler.jump_ahead(0.2)
         self.assert_num_signals_notified(1, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': None,
                               'a': 'A'})
-        event.wait(.3)
+        # At time 300
+        JumpAheadScheduler.jump_ahead(0.1)
         self.assert_num_signals_notified(2, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 300000),
                               'group': None,
                               'a': 'A'})
-        event.wait(.3)
+        # At time 400
+        JumpAheadScheduler.jump_ahead(0.1)
         self.assert_num_signals_notified(3, block)
-        self.assertDictEqual(block.notified_signals[0].to_dict(),
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][2].to_dict(),
                              {'timeout': datetime.timedelta(0, 0, 200000),
                               'group': None,
                               'a': 'A'})
-        event.wait(.3)
+        # At time 700 - only one additional signal since 300 is not repeatable
+        JumpAheadScheduler.jump_ahead(0.3)
+        self.assert_num_signals_notified(4, block)
         block.stop()
 
     def test_persistence(self):
         """Persisted timeout jobs are notified accordingly"""
-        event = Event()
-        block = EventSignalTimeout(event)
+        block = SignalTimeout()
         # Load from persistence
         persisted_jobs = defaultdict(dict)
         persisted_jobs[1][timedelta(seconds=0.1)] = Signal({"group": 1})
@@ -202,20 +184,17 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assertTrue(
             isinstance(block._jobs[1][timedelta(seconds=0.1)], Job))
         # Wait for the persisted signal to be notified
-        event.wait(0.3)
+        JumpAheadScheduler.jump_ahead(0.1)
         self.assert_num_signals_notified(1, block)
-        self.assertEqual(block.notified_signals[0].group, 1)
+        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][0].group, 1)
         # And notified again, since the job is repeatable
-        event.wait(0.3)
+        JumpAheadScheduler.jump_ahead(0.1)
         self.assert_num_signals_notified(2, block)
-        self.assertEqual(block.notified_signals[0].group, 1)
+        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][1].group, 1)
         # New groups should still be scheduled
         block.process_signals([Signal({"group": 2})])
-        # So we get another notification from persistence
-        event.wait(0.3)
-        self.assert_num_signals_notified(3, block)
-        self.assertEqual(block.notified_signals[0].group, 1)
-        # And the new one
-        event.wait(0.3)
+        # So we get another notification from persistence and the new one
+        JumpAheadScheduler.jump_ahead(0.1)
         self.assert_num_signals_notified(4, block)
-        self.assertEqual(block.notified_signals[0].group, 2)
+        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][2].group, 1)
+        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][3].group, 2)
