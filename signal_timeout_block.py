@@ -85,8 +85,8 @@ class SignalTimeout(Persistence, GroupBy, Block):
                 self._schedule_timeout_job(
                     signals[-1],
                     key,
-                    interval.interval(),
-                    interval.repeatable())
+                    interval.interval(signals[-1]),
+                    interval.repeatable(signals[-1]))
 
     def _cancel_timeout_jobs(self, key):
         """ Cancel all the timeouts for a given group """

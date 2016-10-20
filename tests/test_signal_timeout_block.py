@@ -33,6 +33,30 @@ class TestSignalTimeout(NIOBlockTestCase):
                               'a': 'A'})
         block.stop()
 
+    def test_timeout_with_signal_expression(self):
+        """Timeout intervals and repeatable flags can be set by signal"""
+        block = SignalTimeout()
+        self.configure_block(block, {
+            "intervals": [
+                {
+                    "interval": "{{ datetime.timedelta(seconds=$interval) }}",
+                    "repeatable": "{{ $repeatable }}"
+                }
+            ]
+        })
+        block.start()
+        block.process_signals([Signal({'interval': 0.2, 'repeatable': True})])
+        JumpAheadScheduler.jump_ahead(0.2)
+        self.assert_num_signals_notified(1, block)
+        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
+                             {'timeout': datetime.timedelta(0, 0, 200000),
+                              'group': None,
+                              'interval': 0.2,
+                              'repeatable': True})
+        JumpAheadScheduler.jump_ahead(0.2)
+        self.assert_num_signals_notified(2, block)
+        block.stop()
+
     def test_reset(self):
         """ Make sure the block can reset the intervals """
         block = SignalTimeout()
