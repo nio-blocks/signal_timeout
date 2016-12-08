@@ -76,8 +76,6 @@ class SignalTimeout(Persistence, GroupBy, Block):
             # No signals actually came through, do nothing
             self.logger.debug("No signals detected for {}".format(key))
             return
-
-        # Lock around the individual group
         with self._jobs_locks[key]:
             # Cancel any existing timeout jobs, then reschedule them
             self._cancel_timeout_jobs(key)
