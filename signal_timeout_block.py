@@ -1,25 +1,25 @@
 from collections import defaultdict
-from nio.common.block.base import Block
-from nio.common.discovery import Discoverable, DiscoverableType
-from nio.metadata.properties.timedelta import TimeDeltaProperty
-from nio.metadata.properties.bool import BoolProperty
-from nio.metadata.properties.list import ListProperty
-from nio.metadata.properties.holder import PropertyHolder
-from nio.metadata.properties.version import VersionProperty
+from nio.block.base import Block
+from nio.util.discovery import discoverable
+from nio.properties.timedelta import TimeDeltaProperty
+from nio.properties.bool import BoolProperty
+from nio.properties.list import ListProperty
+from nio.properties.holder import PropertyHolder
+from nio.properties.version import VersionProperty
 from nio.modules.scheduler import Job
-from nio.modules.threading import Lock
-from nio.common.signal.base import Signal
-from .mixins.group_by.group_by_block import GroupBy
-from .mixins.persistence.persistence import Persistence
+from threading import Lock
+from nio.signal.base import Signal
+from nio.block.mixins.group_by.group_by import GroupBy
+from nio.block.mixins.persistence.persistence import Persistence
 
 
 class Interval(PropertyHolder):
-    interval = TimeDeltaProperty(title='Interval')
+    interval = TimeDeltaProperty(title='Interval', default={})
     repeatable = BoolProperty(title='Repeatable',
                               default=False)
 
 
-@Discoverable(DiscoverableType.block)
+@discoverable
 class SignalTimeout(Persistence, GroupBy, Block):
 
     """ Notifies a timeout signal when no signals have been processed
@@ -36,28 +36,37 @@ class SignalTimeout(Persistence, GroupBy, Block):
 
     """
 
-    intervals = ListProperty(Interval, title='Timeout Intervals')
-    version = VersionProperty('2.0.0')
+    intervals = ListProperty(Interval, title='Timeout Intervals', default=[])
+    version = VersionProperty('0.1.0')
 
     def __init__(self):
         super().__init__()
         self._jobs = defaultdict(dict)
         self._jobs_locks = defaultdict(Lock)
         self._repeatable_jobs = defaultdict(dict)
+        self._persisted_jobs = None
 
     def persisted_values(self):
-        """ Repeatable jobs should continue to trigger on restart."""
-        return {"_repeatable_jobs": "_repeatable_jobs"}
+        """Use persistence mixin"""
+        return ["_repeatable_jobs"]
+
+    def configure(self, context):
+        super().configure(context)
+        # Save off the persisted jobs here in case self._reapeatable_jobs is
+        # modifed by a processed signal before `start` schedules this.
+        self._persisted_jobs = self._repeatable_jobs
 
     def start(self):
         super().start()
-        """Schedule persisted jobs."""
-        for key in self._repeatable_jobs:
+        # Schedule persisted jobs
+        for key, intervals in self._persisted_jobs.items():
             with self._jobs_locks[key]:
-                for interval in self._repeatable_jobs[key]:
-                    self._schedule_timeout_job(
-                        self._repeatable_jobs[key][interval],
-                        key, interval, True)
+                for interval, job in intervals.items():
+                    if interval not in self._jobs[key]:
+                        # On rare occassions, a new timeout job may have been
+                        # scheduled before this persisted job is scheduled, so
+                        # only do this if one has not been scheduled already.
+                        self._schedule_timeout_job(job, key, interval, True)
 
     def process_signals(self, signals):
         self.for_each_group(self.process_group, signals)
@@ -65,25 +74,28 @@ class SignalTimeout(Persistence, GroupBy, Block):
     def process_group(self, signals, key):
         if len(signals) == 0:
             # No signals actually came through, do nothing
-            self._logger.debug("No signals detected for {}".format(key))
+            self.logger.debug("No signals detected for {}".format(key))
             return
         with self._jobs_locks[key]:
             # Cancel any existing timeout jobs, then reschedule them
             self._cancel_timeout_jobs(key)
-            for interval in self.intervals:
+            for interval in self.intervals():
                 self._schedule_timeout_job(
-                    signals[-1], key, interval.interval, interval.repeatable)
+                    signals[-1],
+                    key,
+                    interval.interval(signals[-1]),
+                    interval.repeatable(signals[-1]))
 
     def _cancel_timeout_jobs(self, key):
         """ Cancel all the timeouts for a given group """
-        self._logger.debug("Cancelling jobs for {}".format(key))
+        self.logger.debug("Cancelling jobs for {}".format(key))
         for job in self._jobs[key].values():
             job.cancel()
         if key in self._repeatable_jobs:
             del self._repeatable_jobs[key]
 
     def _schedule_timeout_job(self, signal, key, interval, repeatable):
-        self._logger.debug("Scheduling new timeout job for group {}, interval"
+        self.logger.debug("Scheduling new timeout job for group {}, interval"
                            "={} repeatable={}".format(
                                key, interval, repeatable))
         self._jobs[key][interval] = Job(
