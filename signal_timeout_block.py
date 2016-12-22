@@ -7,7 +7,7 @@ from nio.properties.list import ListProperty
 from nio.properties.holder import PropertyHolder
 from nio.properties.version import VersionProperty
 from nio.modules.scheduler import Job
-from threading import Lock
+from threading import Event, Lock
 from nio.signal.base import Signal
 from nio.block.mixins.group_by.group_by import GroupBy
 from nio.block.mixins.persistence.persistence import Persistence
@@ -45,6 +45,7 @@ class SignalTimeout(Persistence, GroupBy, Block):
         self._jobs_locks = defaultdict(Lock)
         self._repeatable_jobs = defaultdict(dict)
         self._persisted_jobs = None
+        self._persistence_scheduled = Event()
 
     def persisted_values(self):
         """Use persistence mixin"""
@@ -67,8 +68,10 @@ class SignalTimeout(Persistence, GroupBy, Block):
                         # scheduled before this persisted job is scheduled, so
                         # only do this if one has not been scheduled already.
                         self._schedule_timeout_job(job, key, interval, True)
+        self._persistence_scheduled.set()
 
     def process_signals(self, signals):
+        self._persistence_scheduled.wait(1)
         self.for_each_group(self.process_group, signals)
 
     def process_group(self, signals, key):
