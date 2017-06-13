@@ -1,27 +1,28 @@
 {
-  "nio/SignalTimeout": {
-    "Input": "Any list of signals.",
-    "Category": "SignalInspection",
-    "Dependencies": [
-      "[GroupBy Block Mixin](https://github.com/nio-blocks/mixins/tree/master/group_by)"
-    ],
-    "Output": "The last signal to enter the block will be notified as a timeout signal. The following two attributes will also be added to the signal.\n-   **timeout**: A python `datetime.timedelta` specifying the configured `interval` that triggered the timeout signal.\n-   **group**: The group as defined by `group_by`.",
-    "Properties": {
-      "repeatable": {
-        "description": "If `True`, a timeout signal is emitted every interval without another input signal instead of just once."
-      },
-      "interval": {
-        "description": "After a signal, if another one does not enter the block for this amount of time, emit a timeout signal."
-      },
-      "intervals": {
-        "description": ""
-      },
-      "group_by": {
-        "description": "The value by which signals are grouped. Output signals will have `group` set to this value."
-      }
-    },
-    "Description": "Notifies a timeout signal when no signals have been processed by this block for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.\nGroup-by functionality will create timeout signals for each registered group. A signal needs to come in to the block to initialize a group and start emitting timeout signals.\nRepeatable timeouts are saved to persistence so that they continue to notify after a service restart.",
-    "Commands": {},
-    "Version": "1.0.0"
-  }
+    "nio/SignalTimeout": {
+        "Properties": {
+            "repeatable": {
+                "description": "If `True`, a timeout signal is emitted every interval without another input signal instead of just once."
+            },
+            "interval": {
+                "description": "After a signal, if another one does not enter the block for this amount of time, emit a timeout signal."
+            },
+            "intervals": {
+                "description": ""
+            },
+            "group_by": {
+                "description": "The value by which signals are grouped. Output signals will have `group` set to this value."
+            }
+        },
+        "Category": "SignalInspection",
+        "Version": "1.0.0",
+        "Output": {
+            "Description": "The last signal to enter the block will be notified as a timeout signal. The following two attributes will also be added to the signal.\n-   **timeout**: A python `datetime.timedelta` specifying the configured `interval` that triggered the timeout signal.\n-   **group**: The group as defined by `group_by`."
+        },
+        "Input": {
+            "Description": "Any list of signals."
+        },
+        "Description": "Notifies a timeout signal when no signals have been processed by this block for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.\nGroup-by functionality will create timeout signals for each registered group. A signal needs to come in to the block to initialize a group and start emitting timeout signals.\nRepeatable timeouts are saved to persistence so that they continue to notify after a service restart.",
+        "Commands": {}
+    }
 }
