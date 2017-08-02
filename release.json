@@ -1,7 +1,7 @@
 {
   "nio/SignalTimeout": {
-    "Language": "Python",
-    "Reference": "github.com/nio-blocks/signal_timeout.git@v1.0.0",
-    "Version": "1.0.0"
+    "language": "Python",
+    "version": "0.0.1",
+    "reference": "github.com/nio-blocks/signal_timeout.git@v0.0.1"
   }
 }
