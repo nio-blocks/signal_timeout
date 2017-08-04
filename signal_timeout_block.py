@@ -26,7 +26,7 @@ class SignalTimeout(Persistence, GroupBy, Block):
     by this block for the defined intervals.
 
     The timeout signal is the last signal that entered the block, with the
-    added attributes *timoeut* and *group*.
+    added attributes *timeout* and *group*.
 
     Properties:
         group_by (expression): The value by which signals are grouped.
@@ -44,30 +44,18 @@ class SignalTimeout(Persistence, GroupBy, Block):
         self._jobs = defaultdict(dict)
         self._jobs_locks = defaultdict(Lock)
         self._repeatable_jobs = defaultdict(dict)
-        self._persisted_jobs = None
         self._persistence_scheduled = Event()
 
     def persisted_values(self):
         """Use persistence mixin"""
         return ["_repeatable_jobs"]
 
-    def configure(self, context):
-        super().configure(context)
-        # Save off the persisted jobs here in case self._reapeatable_jobs is
-        # modifed by a processed signal before `start` schedules this.
-        self._persisted_jobs = self._repeatable_jobs
-
     def start(self):
         super().start()
         # Schedule persisted jobs
-        for key, intervals in self._persisted_jobs.items():
-            with self._jobs_locks[key]:
-                for interval, job in intervals.items():
-                    if interval not in self._jobs[key]:
-                        # On rare occassions, a new timeout job may have been
-                        # scheduled before this persisted job is scheduled, so
-                        # only do this if one has not been scheduled already.
-                        self._schedule_timeout_job(job, key, interval, True)
+        for key, intervals in self._repeatable_jobs.items():
+            for interval, job in intervals.items():
+                self._schedule_timeout_job(job, key, interval, True)
         self._persistence_scheduled.set()
 
     def process_signals(self, signals):

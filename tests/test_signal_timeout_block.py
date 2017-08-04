@@ -194,11 +194,7 @@ class TestSignalTimeout(NIOBlockTestCase):
 
     def test_persistence(self):
         """Persisted timeout jobs are notified accordingly"""
-        class TestSignalTimeout(SignalTimeout):
-            def _schedule_timeout_job(self, signal, key, interval, repeatable):
-                super()._schedule_timeout_job(
-                    signal, key, interval, repeatable)
-        block = TestSignalTimeout()
+        block = SignalTimeout()
         # Load from persistence
         persisted_jobs = defaultdict(dict)
         persisted_jobs[1][timedelta(seconds=0.1)] = Signal({"group": 1})
