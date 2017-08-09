@@ -1,16 +1,11 @@
 from collections import defaultdict
-from nio.block.base import Block
-from nio.util.discovery import discoverable
-from nio.properties.timedelta import TimeDeltaProperty
-from nio.properties.bool import BoolProperty
-from nio.properties.list import ListProperty
-from nio.properties.holder import PropertyHolder
-from nio.properties.version import VersionProperty
-from nio.modules.scheduler import Job
 from threading import Event, Lock
-from nio.signal.base import Signal
-from nio.block.mixins.group_by.group_by import GroupBy
-from nio.block.mixins.persistence.persistence import Persistence
+
+from nio.block.base import Block
+from nio.properties import TimeDeltaProperty, BoolProperty, ListProperty, \
+    PropertyHolder, VersionProperty
+from nio.modules.scheduler import Job
+from nio.block.mixins import GroupBy, Persistence
 
 
 class Interval(PropertyHolder):
@@ -19,7 +14,6 @@ class Interval(PropertyHolder):
                               default=False)
 
 
-@discoverable
 class SignalTimeout(Persistence, GroupBy, Block):
 
     """ Notifies a timeout signal when no signals have been processed
@@ -86,9 +80,9 @@ class SignalTimeout(Persistence, GroupBy, Block):
             del self._repeatable_jobs[key]
 
     def _schedule_timeout_job(self, signal, key, interval, repeatable):
-        self.logger.debug("Scheduling new timeout job for group {}, interval"
-                           "={} repeatable={}".format(
-                               key, interval, repeatable))
+        self.logger.debug("Scheduling new timeout job for group {}, "
+                          "interval={} repeatable={}".format(
+                                key, interval, repeatable))
         self._jobs[key][interval] = Job(
             self._timeout_job, interval, repeatable, signal, key, interval)
         if repeatable:

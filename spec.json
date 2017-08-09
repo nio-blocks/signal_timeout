@@ -1,10 +1,34 @@
 {
   "nio/SignalTimeout": {
-    "version": "0.0.1",
-    "description": "",
+    "version": "0.1.0",
+    "description": "Notifies a timeout signal when no signals have been processed by this block for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.",
+    "properties": {
+      "group_by": {
+        "title": "Group By",
+        "type": "Type",
+        "description": "The value by which signals are grouped. Output signals will have `group` set to this value.",
+        "default": null
+      },
+      "intervals": {
+        "title": "Timeout Intervals",
+        "type": "ListType",
+        "description": "After a signal, if another one does not enter the block for this amount of time, emit a timeout signal.",
+        "default": []
+      },
+      "load_from_persistence": {
+        "title": "Load from Persistence?",
+        "type": "BoolType",
+        "description": "If true, when the block is restarted it will restart with the previous amount of remaining time for the current interval",
+        "default": true
+      }
+    },
     "inputs": {},
     "outputs": {},
-    "properties": {},
-    "commands": {}
+    "commands": {
+      "groups": {
+        "params": {},
+        "description": "Display the active groups tracked by the block"
+      }
+    }
   }
 }
