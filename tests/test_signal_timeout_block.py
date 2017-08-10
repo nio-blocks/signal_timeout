@@ -2,12 +2,14 @@ from collections import defaultdict
 import datetime
 from datetime import timedelta
 from threading import Event
+
 from nio.block.terminals import DEFAULT_TERMINAL
 from nio.modules.scheduler import Job
 from nio.util.threading import spawn
 from nio.signal.base import Signal
 from nio.testing.block_test_case import NIOBlockTestCase
 from nio.testing.modules.scheduler.scheduler import JumpAheadScheduler
+
 from ..signal_timeout_block import SignalTimeout
 
 
@@ -201,10 +203,10 @@ class TestSignalTimeout(NIOBlockTestCase):
         persisted_jobs[2][timedelta(seconds=0.1)] = Signal({"group": 2})
         block._repeatable_jobs = persisted_jobs
         self.configure_block(block, {
-            "intervals": [{"interval":
-                            {"milliseconds": 100},
-                            "repeatable": True
-                            }],
+            "intervals": [{
+                "interval": {"milliseconds": 100},
+                "repeatable": True
+            }],
             "group_by": "{{ $group }}"})
         block.start()
         self.assertEqual(len(block._jobs), 2)
@@ -258,10 +260,10 @@ class TestSignalTimeout(NIOBlockTestCase):
         persisted_jobs[2][timedelta(seconds=0.1)] = Signal({"group": 2})
         block._repeatable_jobs = persisted_jobs
         self.configure_block(block, {
-            "intervals": [{"interval":
-                            {"milliseconds": 100},
-                            "repeatable": True
-                            }],
+            "intervals": [{
+                "interval": {"milliseconds": 100},
+                "repeatable": True
+            }],
             "group_by": "{{ $group }}"})
         # This signal should not cancel the persisted job before it's scheduled
         spawn(block.process_signals, [Signal({"group": 2})])
