@@ -3,6 +3,14 @@
     "version": "0.1.0",
     "description": "Notifies a timeout signal when no signals have been processed by this block for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.",
     "properties": {
+      "backup_interval": {
+        "title": "Backup Interval",
+        "type": "TimeDeltaType",
+        "description": "How often to periodically save (backup) the persisted signal and interval.",
+        "default": {
+          "seconds": 3600
+        }
+      },
       "group_by": {
         "title": "Group By",
         "type": "Type",
@@ -26,8 +34,8 @@
     "outputs": {},
     "commands": {
       "groups": {
-        "params": {},
-        "description": "Display the active groups tracked by the block"
+        "description": "Display the active groups tracked by the block",
+        "params": {}
       }
     }
   }
