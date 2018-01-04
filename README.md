@@ -21,7 +21,7 @@ Outputs
 
 Commands
 --------
-- **groups**: Display the active groups tracked by the block
+- **groups**: Display the active groups tracked by the block.
 
 Dependencies
 ------------
