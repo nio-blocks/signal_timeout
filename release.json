@@ -1,7 +1,7 @@
 {
   "nio/SignalTimeout": {
     "language": "Python",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "url": "git://github.com/nio-blocks/signal_timeout.git"
   }
 }

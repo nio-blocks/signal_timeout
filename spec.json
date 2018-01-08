@@ -1,6 +1,6 @@
 {
   "nio/SignalTimeout": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "The SignalTimeout block will emit a timeout signal when no signals have been processed for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.",
     "categories": [
       "Signal Flow"
