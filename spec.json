@@ -1,7 +1,7 @@
 {
   "nio/SignalTimeout": {
     "version": "0.1.0",
-    "description": "Notifies a timeout signal when no signals have been processed by this block for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.",
+    "description": "The SignalTimeout block will emit a timeout signal when no signals have been processed for the defined `intervals`. A timeout signal is the last signal to enter the block with an added `group` attribute that specifies the group (default `None`) and a `timeout` attribute that is a python `datetime.timedelta` specifying the configured `interval` that triggered the signal.",
     "categories": [
       "Signal Flow"
     ],
@@ -9,7 +9,7 @@
       "backup_interval": {
         "title": "Backup Interval",
         "type": "TimeDeltaType",
-        "description": "How often to periodically save (backup) the persisted signal and interval.",
+        "description": "An interval of time that specifies how often persisted data is saved.",
         "default": {
           "seconds": 3600
         }
@@ -17,7 +17,7 @@
       "group_by": {
         "title": "Group By",
         "type": "Type",
-        "description": "The value by which signals are grouped. Output signals will have `group` set to this value.",
+        "description": "The signal attribute on the incoming signal whose values will be used to define groups on the outgoing signal.",
         "default": null
       },
       "intervals": {
@@ -29,12 +29,20 @@
       "load_from_persistence": {
         "title": "Load from Persistence?",
         "type": "BoolType",
-        "description": "If true, when the block is restarted it will restart with the previous amount of remaining time for the current interval",
+        "description": "If true, when the block is restarted it will restart with the previous amount of remaining time for the current interval.",
         "default": true
       }
     },
-    "inputs": {},
-    "outputs": {},
+    "inputs": {
+      "default": {
+        "description": "Any list of signals."
+      }
+    },
+    "outputs": {
+      "default": {
+        "description": "The last signal to enter the block with additional attributes **timeout** and **group**."
+      }
+    },
     "commands": {
       "groups": {
         "description": "Display the active groups tracked by the block",
