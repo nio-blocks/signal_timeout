@@ -230,7 +230,6 @@ class TestSignalTimeout(NIOBlockTestCase):
         # And notified again, since the job is repeatable
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(4, block)
-        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][2].group, 1)
         # New groups should still be scheduled
         block.process_signals([Signal({"group": 3})])
         # So we get another notification from persistence and the new one
