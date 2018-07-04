@@ -2,6 +2,7 @@ from collections import defaultdict
 import datetime
 from datetime import timedelta
 from threading import Event
+from time import sleep
 
 from nio.block.terminals import DEFAULT_TERMINAL
 from nio.modules.scheduler import Job
@@ -15,13 +16,18 @@ from ..signal_timeout_block import SignalTimeout
 
 class TestSignalTimeout(NIOBlockTestCase):
 
+    def jump_ahead_sleep(self, sec, dur=0.1):
+        # sleep after jumping ahead to ensure signal notification happens
+        JumpAheadScheduler.jump_ahead(sec)
+        sleep(dur)
+
     def test_timeout(self):
         block = SignalTimeout()
         self.configure_block(block, {
             "intervals": [
                 {
                     "interval": {
-                        "milliseconds": 200
+                        "seconds": 10
                     }
                 }
             ]
@@ -29,10 +35,10 @@ class TestSignalTimeout(NIOBlockTestCase):
         block.start()
         block.process_signals([Signal({'a': 'A'})])
         self.assert_num_signals_notified(0, block)
-        JumpAheadScheduler.jump_ahead(0.2)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
+                             {'timeout': timedelta(0, 10, 0),
                               'group': None,
                               'a': 'A'})
         block.stop()
@@ -49,15 +55,15 @@ class TestSignalTimeout(NIOBlockTestCase):
             ]
         })
         block.start()
-        block.process_signals([Signal({'interval': 0.2, 'repeatable': True})])
-        JumpAheadScheduler.jump_ahead(0.2)
+        block.process_signals([Signal({'interval': 10, 'repeatable': True})])
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
+                             {'timeout': timedelta(0, 10, 0),
                               'group': None,
-                              'interval': 0.2,
+                              'interval': 10,
                               'repeatable': True})
-        JumpAheadScheduler.jump_ahead(0.2)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
         block.stop()
 
@@ -68,7 +74,7 @@ class TestSignalTimeout(NIOBlockTestCase):
             "intervals": [
                 {
                     "interval": {
-                        "seconds": 1
+                        "seconds": 10
                     }
                 }
             ]
@@ -76,15 +82,15 @@ class TestSignalTimeout(NIOBlockTestCase):
         block.start()
         block.process_signals([Signal({'a': 'A'})])
         # Wait a bit before sending another signal
-        JumpAheadScheduler.jump_ahead(0.6)
+        self.jump_ahead_sleep(6)
         block.process_signals([Signal({'b': 'B'})])
         self.assert_num_signals_notified(0, block)
-        JumpAheadScheduler.jump_ahead(0.6)
+        self.jump_ahead_sleep(6)
         self.assert_num_signals_notified(0, block)
-        JumpAheadScheduler.jump_ahead(0.6)
+        self.jump_ahead_sleep(6)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {'timeout': datetime.timedelta(seconds=1),
+                             {'timeout': timedelta(seconds=10),
                               'group': None,
                               'b': 'B'})
         block.stop()
@@ -95,7 +101,7 @@ class TestSignalTimeout(NIOBlockTestCase):
             "intervals": [
                 {
                     "interval": {
-                        "milliseconds": 200
+                        "seconds": 10
                     },
                     "repeatable": True
                 }
@@ -103,16 +109,16 @@ class TestSignalTimeout(NIOBlockTestCase):
         })
         block.start()
         block.process_signals([Signal({'a': 'A'})])
-        JumpAheadScheduler.jump_ahead(0.2)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
+                             {'timeout': timedelta(0, 10, 0),
                               'group': None,
                               'a': 'A'})
-        JumpAheadScheduler.jump_ahead(0.2)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
+                             {'timeout': timedelta(0, 10, 0),
                               'group': None,
                               'a': 'A'})
         block.stop()
@@ -123,7 +129,7 @@ class TestSignalTimeout(NIOBlockTestCase):
             "intervals": [
                 {
                     "interval": {
-                        "milliseconds": 200
+                        "seconds": 10
                     },
                     "repeatable": True
                 }
@@ -134,16 +140,16 @@ class TestSignalTimeout(NIOBlockTestCase):
         block.process_signals([Signal({'a': 'A', 'group': 'a'})])
         block.process_signals([Signal({'b': 'B', 'group': 'b'})])
         # Wait for notifications
-        JumpAheadScheduler.jump_ahead(0.2)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
-        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'a',
-                              'a': 'A'})
-        self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
-                              'group': 'b',
-                              'b': 'B'})
+        self.assert_signal_notified(Signal({
+            'timeout': timedelta(0, 10, 0),
+            'group': 'a',
+            'a': 'A'}))
+        self.assert_signal_notified(Signal({
+            'timeout': timedelta(0, 10, 0),
+            'group': 'b',
+            'b': 'B'}))
         block.stop()
 
     def test_multiple_intervals(self):
@@ -152,13 +158,13 @@ class TestSignalTimeout(NIOBlockTestCase):
             "intervals": [
                 {
                     "interval": {
-                        "milliseconds": 200
+                        "seconds": 20
                     },
                     "repeatable": True
                 },
                 {
                     "interval": {
-                        "milliseconds": 300
+                        "seconds": 30
                     },
                     "repeatable": False
                 }
@@ -168,29 +174,29 @@ class TestSignalTimeout(NIOBlockTestCase):
         })
         block.start()
         block.process_signals([Signal({'a': 'A'})])
-        # At time 200
-        JumpAheadScheduler.jump_ahead(0.2)
+        # At time 20
+        self.jump_ahead_sleep(20)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
+                             {'timeout': timedelta(0, 20, 0),
                               'group': None,
                               'a': 'A'})
-        # At time 300
-        JumpAheadScheduler.jump_ahead(0.1)
+        # At time 30
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 300000),
+                             {'timeout': timedelta(0, 30, 0),
                               'group': None,
                               'a': 'A'})
-        # At time 400
-        JumpAheadScheduler.jump_ahead(0.1)
+        # At time 40
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(3, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][2].to_dict(),
-                             {'timeout': datetime.timedelta(0, 0, 200000),
+                             {'timeout': timedelta(0, 20, 0),
                               'group': None,
                               'a': 'A'})
-        # At time 700 - only one additional signal since 300 is not repeatable
-        JumpAheadScheduler.jump_ahead(0.3)
+        # At time 70 - only one additional signal since 30 is not repeatable
+        self.jump_ahead_sleep(30)
         self.assert_num_signals_notified(4, block)
         block.stop()
 
@@ -199,35 +205,39 @@ class TestSignalTimeout(NIOBlockTestCase):
         block = SignalTimeout()
         # Load from persistence
         persisted_jobs = defaultdict(dict)
-        persisted_jobs[1][timedelta(seconds=0.1)] = Signal({"group": 1})
-        persisted_jobs[2][timedelta(seconds=0.1)] = Signal({"group": 2})
+        persisted_jobs[1][timedelta(seconds=10)] = Signal({"group": 1})
+        persisted_jobs[2][timedelta(seconds=10)] = Signal({"group": 2})
         block._repeatable_jobs = persisted_jobs
         self.configure_block(block, {
             "intervals": [{
-                "interval": {"milliseconds": 100},
+                "interval": {"seconds": 10},
                 "repeatable": True
             }],
             "group_by": "{{ $group }}"})
         block.start()
         self.assertEqual(len(block._jobs), 2)
         self.assertTrue(
-            isinstance(block._jobs[1][timedelta(seconds=0.1)], Job))
+            isinstance(block._jobs[1][timedelta(seconds=10)], Job))
         # Wait for the persisted signal to be notified
-        JumpAheadScheduler.jump_ahead(0.1)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
-        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][0].group, 1)
+        self.assert_signal_notified(Signal({
+            'timeout': timedelta(0, 10, 0),
+            'group': 1}))
+        self.assert_signal_notified(Signal({
+            'timeout': timedelta(0, 10, 0),
+            'group': 2}))
         # And notified again, since the job is repeatable
-        JumpAheadScheduler.jump_ahead(0.1)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(4, block)
-        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][2].group, 1)
         # New groups should still be scheduled
         block.process_signals([Signal({"group": 3})])
         # So we get another notification from persistence and the new one
-        JumpAheadScheduler.jump_ahead(0.1)
+        self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(7, block)
-        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][4].group, 1)
-        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][5].group, 2)
-        self.assertEqual(self.last_notified[DEFAULT_TERMINAL][6].group, 3)
+        self.assert_signal_notified(Signal({
+            'timeout': timedelta(0, 10, 0),
+            'group': 3}))
 
     def test_persisted_jobs_always_schedule(self):
         """Persisted timeout jobs are not cancelled before they schedule"""
@@ -256,12 +266,12 @@ class TestSignalTimeout(NIOBlockTestCase):
         block = TestSignalTimeout()
         # Load from persistence
         persisted_jobs = defaultdict(dict)
-        persisted_jobs[1][timedelta(seconds=0.1)] = Signal({"group": 1})
-        persisted_jobs[2][timedelta(seconds=0.1)] = Signal({"group": 2})
+        persisted_jobs[1][timedelta(seconds=10)] = Signal({"group": 1})
+        persisted_jobs[2][timedelta(seconds=10)] = Signal({"group": 2})
         block._repeatable_jobs = persisted_jobs
         self.configure_block(block, {
             "intervals": [{
-                "interval": {"milliseconds": 100},
+                "interval": {"seconds": 10},
                 "repeatable": True
             }],
             "group_by": "{{ $group }}"})
