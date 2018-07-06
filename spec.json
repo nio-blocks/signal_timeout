@@ -29,7 +29,7 @@
       "load_from_persistence": {
         "title": "Load from Persistence?",
         "type": "BoolType",
-        "description": "If true, when the block is restarted it will restart with the previous amount of remaining time for the current interval.",
+        "description": "When stopped, the last signal for each group is saved if the group still has active jobs (one or more interval has not yet timed out). When started, if `load_from_persistence` is `True`, saved signals will be processed, starting all configured timeout intervals for that group.",
         "default": true
       }
     },
@@ -45,8 +45,8 @@
     },
     "commands": {
       "groups": {
-        "description": "Display the active groups tracked by the block",
-        "params": {}
+        "params": {},
+        "description": "Display the active groups tracked by the block"
       }
     }
   }

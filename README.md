@@ -7,7 +7,7 @@ Properties
 - **backup_interval**: An interval of time that specifies how often persisted data is saved.
 - **group_by**: The signal attribute on the incoming signal whose values will be used to define groups on the outgoing signal.
 - **intervals**: After a signal, if another one does not enter the block for this amount of time, emit a timeout signal.
-- **load_from_persistence**: If true, when the block is restarted it will restart with the previous amount of remaining time for the current interval.
+- **load_from_persistence**: When stopped, the last signal for each group is saved if the group still has active jobs (one or more interval has not yet timed out). When started, if `load_from_persistence` is `True`, saved signals will be processed, starting all configured timeout intervals for that group.
 
 Inputs
 ------
@@ -15,13 +15,11 @@ Inputs
 
 Outputs
 -------
-- **default**: The last signal to enter the block with additional attributes: 
-- **timeout**: A python 'datetime.timedelta' specifying the configured 'interval' that triggered the timeout signal.
-- **group**: The group as defined by 'group_by'.
+- **default**: The last signal to enter the block with additional attributes **timeout** and **group**.
 
 Commands
 --------
-- **groups**: Display the active groups tracked by the block.
+- **groups**: Display the active groups tracked by the block
 
 Dependencies
 ------------
