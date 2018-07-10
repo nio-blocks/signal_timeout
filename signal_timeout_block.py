@@ -53,8 +53,12 @@ class SignalTimeout(Persistence, GroupBy, Block):
             with self._jobs_locks[group]:
                 # for each group, grab the first interval's signal and use that
                 for interval, timeout_job in group_items.items():
-                    signal = timeout_job['signal']
-                    if isinstance(signal, dict):  
+                    signal = timeout_job.get('signal')
+                    if not signal:
+                        self.logger.info(
+                            "Ignoring persisted group without a signal")
+                        continue
+                    if isinstance(signal, dict):
                         # safepickle 0.2.0 loads Signal as dict
                         signal = Signal(signal)
                     elif not isinstance(signal, Signal):
@@ -68,9 +72,17 @@ class SignalTimeout(Persistence, GroupBy, Block):
         self._persistence_scheduled.set()
 
     def stop(self):
-        for group in self._jobs:
+        # Figure out which groups need persisting still
+        # Any groups that have signals in self._jobs should be persisted
+        jobs_to_persist = defaultdict(dict)
+        for group, intervals in self._jobs.items():
             with self._jobs_locks[group]:
                 self._cancel_timeout_jobs(group)
+            # Don't persist anything that doesn't have a signal
+            for interval, job in intervals.items():
+                if job.get('signal'):
+                    jobs_to_persist[group][interval] = job
+        self._jobs = jobs_to_persist
         super().stop()
 
     def process_signals(self, signals):
@@ -96,11 +108,10 @@ class SignalTimeout(Persistence, GroupBy, Block):
     def _cancel_timeout_jobs(self, group):
         """ Cancel the timeouts for a group
 
-            This method must be called from withinn the lock for the group.
+            This method must be called from within the lock for the group.
 
             Args:
                 group (str): The group of timeouts affected
-                include_repeatable (bool): Whether to cancel repeatable jobs
         """
         self.logger.debug("Cancelling jobs for {}".format(group))
         for job in self._jobs[group].values():
@@ -131,6 +142,11 @@ class SignalTimeout(Persistence, GroupBy, Block):
             try:
                 timeout_job = self._jobs[group][interval]
                 if not timeout_job.get('repeatable'):
-                    del self._jobs[group][interval]
+                    # Delete the signal from this job information
+                    # This will prevent this group from being persisted
+                    # Note: We don't want to delete the whole group or job here
+                    # because it's possible it contains a different job than
+                    # the one that just timed out (race condition)
+                    self._jobs[group][interval]['signal'] = None
             except KeyError:
                 self.logger.warning("Non-existent job interval timed out")
