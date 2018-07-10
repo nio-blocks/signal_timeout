@@ -369,3 +369,44 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assertEqual(len(block._jobs), 2)
         JumpAheadScheduler.jump_ahead(10)
         self.assert_num_signals_notified(1, block)
+
+    def test_timeout_race_condition(self):
+        """ Test that race conditions from timeout and process are handled """
+        class SlowNotifyBlock(SignalTimeout):
+
+            def notify_signals(self, signals):
+                sleep(0.2)
+                super().notify_signals(signals)
+
+        block = SlowNotifyBlock()
+        self.configure_block(block, {
+            "intervals": [
+                {
+                    "interval": {"seconds": 10},
+                    "repeatable": False,
+                },
+            ],
+            "group_by": "{{ $group }}",
+        })
+        block.start()
+        # Simulate a timeout happening, but this one will be slow to allow
+        # another process signals call to come in while it's "timing out"
+        spawn(
+            block._timeout_job,
+            Signal({"2pi": 6.28, "group": "foo"}),
+            "foo",
+            timedelta(seconds=10))
+        block.process_signals([Signal({"pi": 3.14, "group": "foo"})])
+        sleep(0.5)
+        # After 1 second we should only have seen the signal notified
+        # from the timeout job spawn call
+        self.assert_num_signals_notified(1, block)
+        # After 10 more seconds we shouldn't have any more notifications if
+        # we keep the block alive by continuing to process signals on it
+        JumpAheadScheduler.jump_ahead(5)
+        block.process_signals([Signal({"pi": 3.14, "group": "foo"})])
+        JumpAheadScheduler.jump_ahead(5)
+        block.process_signals([Signal({"pi": 3.14, "group": "foo"})])
+        sleep(0.5)
+        self.assert_num_signals_notified(1, block)
+        block.stop()
