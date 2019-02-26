@@ -118,8 +118,8 @@ class SignalTimeout(Persistence, GroupBy, Block):
             try:
                 job.get('job', None).cancel()
             except AttributeError:
-                # ignore if no job included (when coming from persistence)
-                self.logger.warning("No job object found", exc_info=True)
+                # ignore if no job included (eg, when coming from persistence)
+                self.logger.info("No job object found, not cancelling")
 
     def _schedule_timeout_job(self, signal, group, interval, repeatable):
         self.logger.debug("Scheduling new timeout job for group {}, "
