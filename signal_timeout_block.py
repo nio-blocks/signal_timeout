@@ -135,7 +135,7 @@ class SignalTimeout(Persistence, GroupBy, Block):
 
     def _timeout_job(self, signal, group, interval):
         """ Triggered when an interval times out (ie, signal not received) """
-        signal.timeout = interval
+        signal.timeout = str(interval)
         signal.group = group
         self.notify_signals([signal])
         with self._jobs_locks[group]:
