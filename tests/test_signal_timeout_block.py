@@ -38,7 +38,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {"timeout": timedelta(0, 10, 0),
+                             {"timeout": str(timedelta(0, 10, 0)),
                               "group": None,
                               "a": "A"})
         block.stop()
@@ -59,7 +59,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {"timeout": timedelta(0, 10, 0),
+                             {"timeout": str(timedelta(0, 10, 0)),
                               "group": None,
                               "interval": 10,
                               "repeatable": True})
@@ -90,7 +90,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.jump_ahead_sleep(6)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {"timeout": timedelta(seconds=10),
+                             {"timeout": str(timedelta(seconds=10)),
                               "group": None,
                               "b": "B"})
         block.stop()
@@ -112,13 +112,13 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {"timeout": timedelta(0, 10, 0),
+                             {"timeout": str(timedelta(0, 10, 0)),
                               "group": None,
                               "a": "A"})
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
-                             {"timeout": timedelta(0, 10, 0),
+                             {"timeout": str(timedelta(0, 10, 0)),
                               "group": None,
                               "a": "A"})
         block.stop()
@@ -143,11 +143,11 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
         self.assert_signal_notified(Signal({
-            "timeout": timedelta(0, 10, 0),
+            "timeout": str(timedelta(0, 10, 0)),
             "group": "a",
             "a": "A"}))
         self.assert_signal_notified(Signal({
-            "timeout": timedelta(0, 10, 0),
+            "timeout": str(timedelta(0, 10, 0)),
             "group": "b",
             "b": "B"}))
         block.stop()
@@ -178,21 +178,21 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.jump_ahead_sleep(20)
         self.assert_num_signals_notified(1, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][0].to_dict(),
-                             {"timeout": timedelta(0, 20, 0),
+                             {"timeout": str(timedelta(0, 20, 0)),
                               "group": None,
                               "a": "A"})
         # At time 30
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(2, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][1].to_dict(),
-                             {"timeout": timedelta(0, 30, 0),
+                             {"timeout": str(timedelta(0, 30, 0)),
                               "group": None,
                               "a": "A"})
         # At time 40
         self.jump_ahead_sleep(10)
         self.assert_num_signals_notified(3, block)
         self.assertDictEqual(self.last_notified[DEFAULT_TERMINAL][2].to_dict(),
-                             {"timeout": timedelta(0, 20, 0),
+                             {"timeout": str(timedelta(0, 20, 0)),
                               "group": None,
                               "a": "A"})
         # At time 70 - only one additional signal since 30 is not repeatable
@@ -257,7 +257,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assertTrue(block.latest_signal.from_spawn)
 
     def test_persistence_logic(self):
-        """When stopping, any job that has not yet timed out is persisted. 
+        """When stopping, any job that has not yet timed out is persisted.
         Persisted jobs are rescheduled from the time of start."""
 
         def _configure_block():
@@ -289,19 +289,19 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(1, block_1)
         self.assert_last_signal_notified(Signal({
             "group": None,
-            "timeout": timedelta(seconds=10),
+            "timeout": str(timedelta(seconds=10)),
             "pi": 3.14}))
         self.jump_ahead_sleep(10)
         # 20 seconds after start()
         self.assert_last_signal_notified(Signal({
             "group": None,
-            "timeout": timedelta(seconds=20),
+            "timeout": str(timedelta(seconds=20)),
             "pi": 3.14}))
         block_1.stop()
 
         block_2 = _configure_block()
         block_2.start()
-        # since an active (repeatable) job was persisted, all 
+        # since an active (repeatable) job was persisted, all
         # intervals are picked up
         self.assertEqual(len(block_2._jobs[None]), 2)
         self.jump_ahead_sleep(10)
@@ -311,7 +311,7 @@ class TestSignalTimeout(NIOBlockTestCase):
         self.assert_num_signals_notified(2, block_2)
         self.assert_last_signal_notified(Signal({
             "group": None,
-            "timeout": timedelta(seconds=20),
+            "timeout": str(timedelta(seconds=20)),
             "pi": 3.14}))
 
     def test_persistence_expiration(self):
